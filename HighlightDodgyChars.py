@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 import sublime, sublime_plugin
 
-class HighlightDodgyChars(sublime_plugin.EventListener): 
+class HighlightDodgyChars(sublime_plugin.EventListener):
     def on_activated(self, view):
         self.get_settings()
         self.view = view
@@ -11,7 +11,7 @@ class HighlightDodgyChars(sublime_plugin.EventListener):
 
         self.phantom_set = sublime.PhantomSet(view)
         # highlight dodgy characters when the file is opened
-        self.highlight()
+        self.highlight(view)
 
     def get_settings(self):
         settings = sublime.load_settings('HighlightDodgyChars.sublime-settings')
@@ -34,18 +34,19 @@ class HighlightDodgyChars(sublime_plugin.EventListener):
             # if a modification happens during cooldown, an update is needed afterwards
             self.has_been_modified = True
         else:
-            self.highlight()
+            self.highlight(view)
             # 250 ms cooldown
             self.delay_update = True
-            sublime.set_timeout(self.end_cooldown, 250)
+            sublime.set_timeout(lambda: self.end_cooldown(view), 250)
 
-    def end_cooldown(self):
+    def end_cooldown(self, view):
         self.delay_update = False;
         if self.has_been_modified:
             self.has_been_modified = False;
-            self.highlight()
+            self.highlight(view)
 
-    def highlight(self):
+    def highlight(self, view):
+        highlights = []
         phantoms = []
         # allow newline, forward-tick and tabulator
         default_whitelist = u'\n´\u0009'
@@ -54,7 +55,13 @@ class HighlightDodgyChars(sublime_plugin.EventListener):
 
         # search the view
         for pos in self.view.find_all(needle):
-            phantoms.append(sublime.Phantom(pos, '<span style="color: var(--pinkish);">!</span>', sublime.LAYOUT_INLINE))
+            highlights.append(pos)
+            phantoms.append(sublime.Phantom(pos, '<span style="color: var(--background); background-color: var(--pinkish); border-radius: 3px;">!</span>', sublime.LAYOUT_INLINE))
+
+        if highlights:
+            view.add_regions('zero-width-and-bad-chars', highlights, 'invalid', 'dot', sublime.DRAW_EMPTY)
+        else:
+            view.erase_regions('zero-width-and-bad-chars')
 
         # if something dodgy was found, highlight the dodgy parts
         self.phantom_set.update(phantoms);
